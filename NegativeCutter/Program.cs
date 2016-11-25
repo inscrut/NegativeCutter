@@ -12,7 +12,7 @@ namespace NegativeCutter
     {
         private enum ArgType
         {
-            info, outfile, outdir, w, h, none, error
+            info, type, outfile, outdir, w, h, none, error
         }
 
         static void Main(string[] args)
@@ -22,6 +22,7 @@ namespace NegativeCutter
             string path_infofile = "info.txt";
             string path_outfile = "Bad.dat";
             string path_outdir = "Bad";
+            string type_file = "bmp";
             int score = 0;
             Size cutter = new Size(64, 64);
             HitBox hitbox = new HitBox();
@@ -39,6 +40,7 @@ namespace NegativeCutter
                     case "-outdir": arg_type = ArgType.outdir; break;
                     case "-w": arg_type = ArgType.w; break;
                     case "-h": arg_type = ArgType.h; break;
+                    case "-type": arg_type = ArgType.type; break;
                     default: _type = true; break;
                 }
                 if (!_type) continue;
@@ -51,6 +53,7 @@ namespace NegativeCutter
                         case ArgType.h: cutter.Height = Convert.ToInt32(arg); break;
                         case ArgType.outfile: path_outfile = arg; break;
                         case ArgType.outdir: path_outdir = arg; break;
+                        case ArgType.type: type_file = arg; break;
                         default: arg_type = ArgType.error; break;
                     }
                     if (arg_type != ArgType.error) arg_type = ArgType.none;
@@ -84,7 +87,7 @@ namespace NegativeCutter
             {
                 using (File.Create(path_outfile)) { }
             }
-            if(Directory.GetFiles(path_outdir).Length != 0)
+            if(Directory.GetFiles(path_outdir).Length > 1)
             {
                 Console.WriteLine("Warning! '{0}' path is not empty!\r\nPress ENTER to continue or Ctrl+C for exit...", path_outdir);
                 Console.Read();
@@ -115,9 +118,9 @@ namespace NegativeCutter
                         }
                     }
 
-                    drawHitBoxes(global_bmp, boxes, trg_img.path);
+                    drawHitBoxes(global_bmp, boxes, trg_img.path, type_file);
 
-                    int lnum = getLastNum(path_outdir, ".bmp");
+                    int lnum = getLastNum(path_outdir);
                     int diff = lnum;
                     try
                     {
@@ -125,8 +128,8 @@ namespace NegativeCutter
                         {
                             foreach (var box in boxes)
                             {
-                                string _tmp_path = path_outdir + @"\" + "neg" + lnum.ToString() + ".bmp";
-                                Crop(global_bmp, new Rectangle(box.coord, box.size), _tmp_path);
+                                string _tmp_path = path_outdir + @"\" + "neg" + lnum.ToString() + "." + type_file;
+                                Crop(global_bmp, new Rectangle(box.coord, box.size), _tmp_path, type_file);
 
                                 sw.WriteLine(_tmp_path);
                                 lnum++;
@@ -140,10 +143,10 @@ namespace NegativeCutter
                         Environment.Exit(1);
                     }
                     Console.WriteLine("    - {0} images has been croped!", lnum - diff);
-                    score += lnum;
+                    score += lnum - diff;
                 }
             }
-            Console.WriteLine("Was made {0} pictures!", score);
+            Console.WriteLine("\r\nWas made {0} pictures!", score);
             Console.WriteLine("\r\nDone.");
         }
 
@@ -195,9 +198,9 @@ namespace NegativeCutter
             public Size size;
         }
 
-        static int getLastNum(string _path, string _type)
+        static int getLastNum(string _path)
         {
-            return Directory.GetFiles(_path, _type).Length+1;
+            return Directory.GetFiles(_path).Length+1;
         }
 
         static bool checkHitbox(GImg _img, HitBox _hb)
@@ -230,7 +233,7 @@ namespace NegativeCutter
             return true;
         }
 
-        static void drawHitBoxes(Image _global, List<HitBox> _boxes, string _path)
+        static void drawHitBoxes(Image _global, List<HitBox> _boxes, string _path, string _type)
         {
             using(Image res = new Bitmap(_global))
             {
@@ -238,16 +241,29 @@ namespace NegativeCutter
                 {
                     foreach (var box in _boxes)
                         g.DrawRectangle(new Pen(new SolidBrush(Color.Red)), new Rectangle(box.coord, box.size));
-                    res.Save(_path + ".result.bmp", System.Drawing.Imaging.ImageFormat.Bmp);
-                    Console.WriteLine("--> {0}", _path + ".result.bmp");
+                    res.Save(_path + ".result." + _type, System.Drawing.Imaging.ImageFormat.Bmp);
+                    Console.WriteLine("--> {0}", _path + ".result." + _type);
                 }
             }           
         }
 
-        static void Crop(Image _image, Rectangle selection, string _path)
+        static void Crop(Image _image, Rectangle selection, string _path, string _type)
         {
             using (Bitmap buff = new Bitmap(_image))
-                buff.Clone(selection, buff.PixelFormat).Save(_path, System.Drawing.Imaging.ImageFormat.Bmp);
+                switch (_type)
+                {
+                    case "bmp":
+                        buff.Clone(selection, buff.PixelFormat).Save(_path, System.Drawing.Imaging.ImageFormat.Bmp);
+                        break;
+                    case "png":
+                        buff.Clone(selection, buff.PixelFormat).Save(_path, System.Drawing.Imaging.ImageFormat.Png);
+                        break;
+                    case "jpg":
+                        buff.Clone(selection, buff.PixelFormat).Save(_path, System.Drawing.Imaging.ImageFormat.Jpeg);
+                        break;
+                    default:
+                        break;
+                }
         }
     }
 }
